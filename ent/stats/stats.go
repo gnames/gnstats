@@ -37,16 +37,44 @@ type Stats struct {
 	// verified to the Catalogue of Life
 	NamesNum int
 
-	//Kingdom is the most prevalent kingdom in the group of names.
+	// Kingdom is the most prevalent kingdom in the group of names.
 	Kingdom Taxon
+
+	// KingdomPercentage is a value between 0 and 1 representing the percentage
+	// of names located in the most prevalent kingdom.
+	KingdomPercentage float32
+
+	// Phylum is the most prevalent phylum in the group of names.
+	Phylum Taxon
+
+	// PhylumPercentage is a value between 0 and 1 representing the percentage
+	// of names located in the most prevalent phylum.
+	PhylumPercentage float32
+
+	// Class is the most prevalent class in the group of names.
+	Class Taxon
+
+	// ClassPercentage is a value between 0 and 1 representing the percentage
+	// of names located in the most prevalent class.
+	ClassPercentage float32
+
+	// Order is the most prevalent order in the group of names.
+	Order Taxon
+
+	// OrderPercentage is a value between 0 and 1 representing the percentage
+	// of names located in the most prevalent order.
+	OrderPercentage float32
+
+	// Family is the most prevalent family in the group of names.
+	Family Taxon
+
+	// FamilyPercentage is a value between 0 and 1 representing the percentage
+	// of names located in the most prevalent family.
+	FamilyPercentage float32
 
 	// MainTaxon is the taxon that contains at least the percentage of names
 	// according to the MainTaxonThreshold
 	MainTaxon Taxon
-
-	// KingdomPercentage is a value between 0 and 1 representing the percentage
-	// of names located in a particular kingdom.
-	KingdomPercentage float32
 
 	// MainTaxonPercentage is a value between 0 and 1 representing the
 	// percentage of names located in the MainTaxon.
@@ -113,40 +141,61 @@ func calcStats(
 	ranks []rankData,
 	threshold float32,
 ) Stats {
-	var ks []TaxonDist
-	var kingdom, mainTaxon Taxon
-	var kPCent, txnPCent float32
+	res := Stats{
+		NamesNum: namesNum,
+	}
+	var txnDistr []TaxonDist
+	var maxTx, mainTaxon Taxon
+	var maxPcent, txnPCent float32
 	var foundMainTaxon bool
 	l := len(ranks)
 
-	for i := range ranks {
-		revI := l - 1 - i
-		if ranks[revI].rank <= Unknown {
+	for idx := range ranks {
+		reverseIdx := l - 1 - idx
+		if ranks[reverseIdx].rank <= Unknown {
 			continue
 		}
-		txn, pcent := maxTaxon(namesNum, ranks[revI])
-		if ranks[revI].rank == Kingdom {
-			ks = getKingdoms(ranks[revI])
-			if isMaxKingdom(ks, pcent) {
-				kingdom, kPCent = txn, pcent
+		txn, pcent := maxTaxon(namesNum, ranks[reverseIdx])
+		switch ranks[reverseIdx].rank {
+		case Kingdom, Phylum, Class, Order, Family:
+			txnDistr = getTaxDist(namesNum, ranks[reverseIdx])
+
+			if isMaxTaxon(txnDistr, pcent) {
+				maxTx, maxPcent = txn, pcent
 			}
 		}
+
+		switch maxTx.Rank {
+		case Kingdom:
+			res.Kingdom = maxTx
+			res.KingdomPercentage = maxPcent
+			res.Kingdoms = txnDistr
+		case Phylum:
+			res.Phylum = maxTx
+			res.PhylumPercentage = maxPcent
+		case Class:
+			res.Class = maxTx
+			res.ClassPercentage = maxPcent
+		case Order:
+			res.Order = maxTx
+			res.OrderPercentage = maxPcent
+		case Family:
+			res.Family = maxTx
+			res.FamilyPercentage = maxPcent
+		}
+
 		if pcent > threshold && !foundMainTaxon {
-			mainTaxon, txnPCent = txn, pcent
+			mainTaxon = txn
+			txnPCent = pcent
 			foundMainTaxon = true
 		}
 	}
-	return Stats{
-		NamesNum:            namesNum,
-		Kingdom:             kingdom,
-		MainTaxon:           mainTaxon,
-		KingdomPercentage:   kPCent,
-		MainTaxonPercentage: txnPCent,
-		Kingdoms:            ks,
-	}
+	res.MainTaxon = mainTaxon
+	res.MainTaxonPercentage = txnPCent
+	return res
 }
 
-func isMaxKingdom(cd []TaxonDist, percentage float32) bool {
+func isMaxTaxon(cd []TaxonDist, percentage float32) bool {
 	var count int
 	for i := range cd {
 		if cd[i].Percentage == percentage {
@@ -156,14 +205,14 @@ func isMaxKingdom(cd []TaxonDist, percentage float32) bool {
 	return count == 1
 }
 
-func getKingdoms(kingdom rankData) []TaxonDist {
-	res := make([]TaxonDist, len(kingdom.data))
+func getTaxDist(namesNum int, tx rankData) []TaxonDist {
+	res := make([]TaxonDist, len(tx.data))
 	var i int
-	for k, v := range kingdom.data {
+	for k, v := range tx.data {
 		cd := TaxonDist{
 			NamesNum:   v,
 			Name:       k.Name,
-			Percentage: float32(v) / float32(kingdom.total),
+			Percentage: float32(v) / float32(namesNum),
 		}
 		res[i] = cd
 		i++
