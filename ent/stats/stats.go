@@ -37,6 +37,9 @@ type Stats struct {
 	// verified to the Catalogue of Life
 	NamesNum int
 
+	// Kingdoms is the distribution of names across detected kingdoms.
+	Kingdoms []TaxonDist
+
 	// Kingdom is the most prevalent kingdom in the group of names.
 	Kingdom Taxon
 
@@ -72,6 +75,13 @@ type Stats struct {
 	// of names located in the most prevalent family.
 	FamilyPercentage float32
 
+	// Genus is the most prevalent genus in the group of names.
+	Genus Taxon
+
+	// GenusPercentage is a value between 0 and 1 representing the percentage
+	// of names located in the most prevalent Genus.
+	GenusPercentage float32
+
 	// MainTaxon is the taxon that contains at least the percentage of names
 	// according to the MainTaxonThreshold
 	MainTaxon Taxon
@@ -79,9 +89,6 @@ type Stats struct {
 	// MainTaxonPercentage is a value between 0 and 1 representing the
 	// percentage of names located in the MainTaxon.
 	MainTaxonPercentage float32
-
-	// Kingdoms is the distribution of names across detected kingdoms.
-	Kingdoms []TaxonDist
 }
 
 // TaxonDist provides information how a group of names is distributed
@@ -145,19 +152,21 @@ func calcStats(
 		NamesNum: namesNum,
 	}
 	var txnDistr []TaxonDist
-	var maxTx, mainTaxon Taxon
-	var maxPcent, txnPCent float32
+	var mainTaxon Taxon
+	var txnPCent float32
 	var foundMainTaxon bool
 	l := len(ranks)
 
 	for idx := range ranks {
+		var maxTx Taxon
+		var maxPcent float32
 		reverseIdx := l - 1 - idx
 		if ranks[reverseIdx].rank <= Unknown {
 			continue
 		}
 		txn, pcent := maxTaxon(namesNum, ranks[reverseIdx])
 		switch ranks[reverseIdx].rank {
-		case Kingdom, Phylum, Class, Order, Family:
+		case Kingdom, Phylum, Class, Order, Family, Genus:
 			txnDistr = getTaxDist(namesNum, ranks[reverseIdx])
 
 			if isMaxTaxon(txnDistr, pcent) {
@@ -182,6 +191,9 @@ func calcStats(
 		case Family:
 			res.Family = maxTx
 			res.FamilyPercentage = maxPcent
+		case Genus:
+			res.Genus = maxTx
+			res.GenusPercentage = maxPcent
 		}
 
 		if pcent > threshold && !foundMainTaxon {
