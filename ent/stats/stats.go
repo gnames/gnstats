@@ -7,6 +7,8 @@
 // of scientific names of genera and lower.
 package stats
 
+import "sort"
+
 // Taxon struct represents a particular taxon according to the Catalogue of
 // Life (CoL). It includes an ID from CoL, name of the taxon, and numerical and
 // string representation of the taxon's rank.
@@ -37,7 +39,8 @@ type Stats struct {
 	// verified to the Catalogue of Life
 	NamesNum int
 
-	// Kingdoms is the distribution of names across detected kingdoms.
+	// Kingdoms is the distribution of names across detected kingdoms,
+	// sorted by the number of names, the largest first.
 	Kingdoms []TaxonDist
 
 	// Kingdom is the most prevalent kingdom in the group of names.
@@ -53,6 +56,11 @@ type Stats struct {
 	// PhylumPercentage is a value between 0 and 1 representing the percentage
 	// of names located in the most prevalent phylum.
 	PhylumPercentage float32
+
+	// Classes is the distribution of names across detected classes,
+	// sorted by the number of names, the largest first. Unlike Class, it is provided even if several classes share the
+	// largest number of names.
+	Classes []TaxonDist
 
 	// Class is the most prevalent class in the group of names.
 	Class Taxon
@@ -168,6 +176,9 @@ func calcStats(
 		switch ranks[reverseIdx].rank {
 		case Kingdom, Phylum, Class, Order, Family, Genus:
 			txnDistr = getTaxDist(namesNum, ranks[reverseIdx])
+			if ranks[reverseIdx].rank == Class {
+				res.Classes = txnDistr
+			}
 
 			if isMaxTaxon(txnDistr, pcent) {
 				maxTx, maxPcent = txn, pcent
@@ -229,6 +240,12 @@ func getTaxDist(namesNum int, tx rankData) []TaxonDist {
 		res[i] = cd
 		i++
 	}
+	sort.Slice(res, func(i, j int) bool {
+		if res[i].NamesNum == res[j].NamesNum {
+			return res[i].Name < res[j].Name
+		}
+		return res[i].NamesNum > res[j].NamesNum
+	})
 	return res
 }
 

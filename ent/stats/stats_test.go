@@ -32,6 +32,10 @@ func TestTaxons(t *testing.T) {
 	assert.Equal(float32(1.0), res.PhylumPercentage)
 	assert.Equal("Gastropoda", res.Class.Name)
 	assert.Equal(float32(0.5507246), res.ClassPercentage)
+	assert.Greater(len(res.Classes), 1)
+	assert.Equal("Gastropoda", res.Classes[0].Name)
+	assert.Equal(38, res.Classes[0].NamesNum)
+	assert.Equal(res.ClassPercentage, res.Classes[0].Percentage)
 	assert.Equal("Neogastropoda", res.Order.Name)
 	assert.Equal(float32(0.26086956), res.OrderPercentage)
 	assert.Equal("Muricidae", res.Family.Name)
@@ -113,6 +117,39 @@ func TestFiftyFifty(t *testing.T) {
 	assert.Equal(t, res.KingdomPercentage, float32(0))
 	assert.Equal(t, res.MainTaxon.Name, "")
 	assert.Equal(t, res.MainTaxonPercentage, float32(0))
+	assert.Equal(t, "Magnoliopsida", res.Class.Name)
+	assert.Equal(t, float32(0.5), res.ClassPercentage)
+	// classes with the same number of names are sorted by name
+	assert.Equal(t, []stats.TaxonDist{
+		{NamesNum: 2, Name: "Magnoliopsida", Percentage: 0.5},
+		{NamesNum: 1, Name: "Aves", Percentage: 0.25},
+		{NamesNum: 1, Name: "Mammalia", Percentage: 0.25},
+	}, res.Classes)
+}
+
+// TestClassesTie tests that Classes are provided even if there is no
+// single most prevalent class.
+func TestClassesTie(t *testing.T) {
+	hr := []stats.Hierarchy{
+		newHry(
+			"Biota|Animalia|Chordata|Mammalia|Carnivora|Felidae|Puma|Puma concolor",
+			"unranked|kingdom|phylum|class|order|family|genus|species",
+			"5T6MX|N|CH2|6224G|VS|623RM|75F9|4QHKG",
+		),
+		newHry(
+			"Biota|Animalia|Chordata|Aves|Strigiformes|Strigidae|Bubo|Bubo bubo",
+			"unranked|kingdom|phylum|class|order|family|genus|species",
+			"5T6MX|N|CH2|V2|466|GQX|3DQQ|NKSD",
+		),
+	}
+	res := stats.New(hr, 0)
+	assert.Equal(t, "Chordata", res.Phylum.Name)
+	assert.Equal(t, "", res.Class.Name)
+	assert.Equal(t, float32(0), res.ClassPercentage)
+	assert.Equal(t, []stats.TaxonDist{
+		{NamesNum: 1, Name: "Aves", Percentage: 0.5},
+		{NamesNum: 1, Name: "Mammalia", Percentage: 0.5},
+	}, res.Classes)
 }
 
 func testData(t *testing.T) []stats.Hierarchy {
