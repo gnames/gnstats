@@ -1,6 +1,6 @@
 module github.com/gnames/gnstats
 
-go 1.18
+go 1.27.3
 
 require github.com/stretchr/testify v1.7.1
 
